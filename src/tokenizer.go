@@ -272,8 +272,9 @@ func Transform(tokens []Token, withNth []Range) []Token {
 		if r.begin == r.end {
 			idx := r.begin
 			if idx == rangeEllipsis {
-				chars := util.ToChars(stringBytes(JoinTokens(tokens)))
-				parts = append(parts, &chars)
+				for i := range tokens {
+					parts = append(parts, tokens[i].text)
+				}
 			} else {
 				if idx < 0 {
 					idx += numTokens + 1
@@ -319,11 +320,15 @@ func Transform(tokens []Token, withNth []Range) []Token {
 		case 1:
 			merged = *parts[0]
 		default:
-			var output bytes.Buffer
-			for _, part := range parts {
-				output.WriteString(part.ToString())
+			// Consecutive tokens of one line are usually adjacent in memory, so view them in place rather than copying.
+			var ok bool
+			if merged, ok = util.JoinAdjacent(parts); !ok {
+				var output bytes.Buffer
+				for _, part := range parts {
+					output.WriteString(part.ToString())
+				}
+				merged = util.ToChars(output.Bytes())
 			}
-			merged = util.ToChars(output.Bytes())
 		}
 
 		var prefixLength int32

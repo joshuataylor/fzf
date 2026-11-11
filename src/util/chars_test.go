@@ -99,6 +99,35 @@ func TestToCharsAscii(t *testing.T) {
 	}
 }
 
+func TestJoinAdjacent(t *testing.T) {
+	line := []byte("foo bar baz")
+	foo, bar, baz := ToChars(line[0:4]), ToChars(line[4:8]), ToChars(line[8:])
+	empty := ToChars(line[4:4])
+
+	joined, ok := JoinAdjacent([]*Chars{&foo, &empty, &bar, &baz})
+	if !ok || !joined.IsBytes() || joined.ToString() != "foo bar baz" {
+		t.Errorf("adjacent: %q %v", joined.ToString(), ok)
+	}
+	// A view, not a copy
+	if &joined.slice[0] != &line[0] {
+		t.Error("adjacent parts were copied")
+	}
+
+	if _, ok := JoinAdjacent([]*Chars{&foo, &baz}); ok {
+		t.Error("parts with a gap should not join")
+	}
+	if _, ok := JoinAdjacent([]*Chars{&bar, &foo}); ok {
+		t.Error("parts out of order should not join")
+	}
+	runes := ToChars([]byte("한글"))
+	if _, ok := JoinAdjacent([]*Chars{&foo, &runes}); ok {
+		t.Error("rune-mode parts should not join")
+	}
+	if joined, ok := JoinAdjacent([]*Chars{&empty}); !ok || joined.Length() != 0 {
+		t.Error("empty parts should join to empty")
+	}
+}
+
 func TestCharsLength(t *testing.T) {
 	chars := ToChars([]byte("\tabc한글  "))
 	if chars.IsBytes() || chars.Length() != 8 || chars.TrimLength() != 5 {

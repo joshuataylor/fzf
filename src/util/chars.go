@@ -479,3 +479,30 @@ func (chars *Chars) Lines(multiLine bool, maxLines int, wrapCols int, wrapSignWi
 
 	return wrapped, overflow
 }
+
+// JoinAdjacent returns a Chars over the concatenation of parts without copying, when every part is in byte mode
+// and each one starts where the previous one ends in memory.
+//
+// The parts must come from one allocation, as the tokens of one line do, or the result might outlive the later ones.
+func JoinAdjacent(parts []*Chars) (Chars, bool) {
+	var start, end unsafe.Pointer
+	for _, part := range parts {
+		if !part.IsBytes() {
+			return Chars{}, false
+		}
+		if len(part.slice) == 0 {
+			continue
+		}
+		p := unsafe.Pointer(unsafe.SliceData(part.slice))
+		if start == nil {
+			start = p
+		} else if p != end {
+			return Chars{}, false
+		}
+		end = unsafe.Add(p, len(part.slice))
+	}
+	if start == nil {
+		return Chars{slice: []byte{}, flags: flagInBytes}, true
+	}
+	return Chars{slice: unsafe.Slice((*byte)(start), uintptr(end)-uintptr(start)), flags: flagInBytes}, true
+}
